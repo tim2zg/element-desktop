@@ -182,10 +182,10 @@ function toElectronProxyConfig(cfg: DesktopProxyConfig): ElectronFixedConfig {
             }
             auth += "@";
         }
-        // Build rule like: scheme=scheme://authhost:port
-        // Electron accepts a single URL or comma-separated protocol=... pairs.
+        // Build rule like: scheme://authhost:port
+        // If we don't prefix with "scheme=", Chromium applies it to all protocols.
         const scheme = cfg.scheme ?? "http";
-        parts.push(`${scheme}=${scheme}://${auth}${cfg.host}:${cfg.port}`);
+        parts.push(`${scheme}://${auth}${cfg.host}:${cfg.port}`);
     }
 
     const proxyRules = parts.join(";");
