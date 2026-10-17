@@ -5,7 +5,7 @@ on:
         tags: ["secureweb-v*"]
     workflow_dispatch:
 permissions:
-    contents: read
+    contents: write
 jobs:
     windows:
         runs-on: windows-2025
