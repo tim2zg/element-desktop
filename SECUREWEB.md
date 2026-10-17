@@ -7,6 +7,11 @@ v2 envelope transport to Nextcloud Desktop and Element Desktop. Initial packages
 are Windows x64 prereleases. Native application encryption and permissions remain
 separate from SecureWeb transport protection.
 
+Windows x64 previews:
+[Nextcloud Desktop](https://github.com/tim2zg/desktop-secureWeb-nc/releases/tag/secureweb-desktop-v0.1.0)
+and [Element Desktop](https://github.com/tim2zg/element-desktop/releases/tag/secureweb-desktop-v0.1.0).
+Each release includes checksums and source/build verification records.
+
 ## Gateway setup
 
 Build the matching SecureWeb connector revision. Register each backend as a
@@ -56,8 +61,9 @@ be replaced; the client rejects malformed UUIDs, keys and sessions.
 ```
 
 For Element use its Matrix service UUID/key and Matrix public origin. Point the
-client's homeserver at that origin. Nextcloud uses its normal server URL and
-application account credentials; those credentials travel inside the service
+client's homeserver at that origin. In SecureWeb mode Nextcloud's account wizard
+uses its existing username/app-password form. Use a Nextcloud application password,
+not the browser login flow. Those credentials travel inside the service
 envelope, separately from the native session.
 
 Set `SECUREWEB_NEXTCLOUD_PROFILE` or `SECUREWEB_ELEMENT_PROFILE` to the absolute
@@ -76,7 +82,9 @@ denies later service operations; it does not remove local files or message keys.
 
 The first transport buffers a maximum of 32 MiB per application request/response.
 Nextcloud upload chunks must fit that limit; larger downloads and Matrix media
-are refused. Large-file streaming, automatic enrollment/session renewal,
+are refused. Leave Nextcloud upload speed unlimited: the buffered adapter does
+not support bandwidth-throttled upload devices in this preview.
+Large-file streaming, automatic enrollment/session renewal,
 browser-based SSO, Nextcloud push sockets and Element voice/video are outside
 this prerelease's supported scope. Matrix's existing room encryption is retained;
 its algorithm is not changed to PQ by the outer envelope transport.
