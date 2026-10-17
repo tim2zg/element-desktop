@@ -12,6 +12,7 @@ jobs:
         timeout-minutes: 120
         env:
             CSC_IDENTITY_AUTO_DISCOVERY: "false"
+            SECUREWEB_UNSIGNED: "1"
             VARIANT_PATH: element.io/secureweb/build.json
             VERSION: 1.12.12-secureweb.1
         steps:
@@ -39,7 +40,8 @@ jobs:
                   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
                   pnpm run fetch -d element.io/secureweb
                   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            - uses: actions/cache@v4
+            - uses: actions/cache/restore@v4
+              id: native-cache
               with:
                   path: .hak
                   key: windows-secureweb-native-${{ hashFiles('pnpm-lock.yaml', 'hak/**') }}
@@ -52,6 +54,11 @@ jobs:
             - uses: ilammy/msvc-dev-cmd@v1
             - name: Build native search module
               run: pnpm build:native --target x86_64-pc-windows-msvc
+            - uses: actions/cache/save@v4
+              if: steps.native-cache.outputs.cache-hit != 'true'
+              with:
+                  path: .hak
+                  key: windows-secureweb-native-${{ hashFiles('pnpm-lock.yaml', 'hak/**') }}
             - name: Fetch verified desktop transport from this release
               shell: pwsh
               env:
@@ -74,7 +81,7 @@ jobs:
                   $actualHash = (Get-FileHash secureweb-bin/secureweb-desktop-transport.exe -Algorithm SHA256).Hash.ToLower()
                   if ($actualHash -ne $expectedHash) { throw 'Transport checksum mismatch' }
             - name: Build portable desktop release
-              run: pnpm build --win zip --x64 --publish never -c.win.signAndEditExecutable=false
+              run: pnpm build --win zip --x64 --publish never
             - name: Package release evidence
               shell: pwsh
               run: |
@@ -87,8 +94,8 @@ jobs:
             - name: Upload desktop package to draft release
               shell: pwsh
               env:
-                GH_TOKEN: ${{ github.token }}
-                GH_REPO: ${{ github.repository }}
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
               run: |
-                $releaseFiles = @(Get-ChildItem release -File | Select-Object -ExpandProperty FullName)
-                gh release upload secureweb-desktop-v0.1.0 @releaseFiles --clobber
+                  $releaseFiles = @(Get-ChildItem release -File | Select-Object -ExpandProperty FullName)
+                  gh release upload secureweb-desktop-v0.1.0 @releaseFiles --clobber

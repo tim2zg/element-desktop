@@ -200,6 +200,10 @@ if (process.env.VERSION) {
     config.extraMetadata.version = process.env.VERSION;
 }
 
+if (process.env.SECUREWEB_UNSIGNED === "1") {
+    config.win.signAndEditExecutable = false;
+}
+
 if (variant["linux.deb.name"]) {
     config.deb.fpm.push("--name", variant["linux.deb.name"]);
 }
