@@ -1,0 +1,17 @@
+{
+    "brand": "Element SecureWeb",
+    "integrations_ui_url": "",
+    "integrations_rest_url": "",
+    "integrations_widgets_urls": [],
+    "show_labs_settings": false,
+    "setting_defaults": {
+        "UIFeature.voip": false,
+        "UIFeature.widgets": false,
+        "UIFeature.identityServer": false
+    },
+    "features": {
+        "feature_video_rooms": false,
+        "feature_group_calls": false,
+        "feature_element_call_video_rooms": false
+    }
+}

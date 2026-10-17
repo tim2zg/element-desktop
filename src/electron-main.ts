@@ -47,6 +47,7 @@ import { type Json, loadJsonFile } from "./utils.js";
 import { setupMediaAuth } from "./media-auth.js";
 import { readBuildConfig } from "./build-config.js";
 import { getLastAppliedConfig } from "./proxy.js";
+import { installSecureWeb, secureWebProfilePath } from "./secureweb.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -237,6 +238,23 @@ function loadConfig(): Promise<void> {
             // Could not load local config, this is expected in most cases.
         }
 
+        const secureWebProfile = secureWebProfilePath();
+        if (secureWebProfile) {
+            const profile = JSON.parse(fs.readFileSync(secureWebProfile, "utf8")) as { upstream_origin: string };
+            const homeserver = new URL(profile.upstream_origin).origin;
+            delete global.vectorConfig.default_server_name;
+            delete global.vectorConfig.default_hs_url;
+            delete global.vectorConfig.default_is_url;
+            delete global.vectorConfig.update_base_url;
+            global.vectorConfig.default_server_config = { "m.homeserver": { base_url: homeserver } };
+            global.vectorConfig.setting_defaults = {
+                ...global.vectorConfig.setting_defaults,
+                "UIFeature.voip": false,
+                "UIFeature.widgets": false,
+                "UIFeature.identityServer": false,
+            };
+        }
+
         // Tweak modules paths as they assume the root is at the same level as webapp, but for `vector://vector/webapp` it is not.
         if (Array.isArray(global.vectorConfig.modules)) {
             global.vectorConfig.modules = global.vectorConfig.modules.map((m) => {
@@ -354,6 +372,14 @@ if (store.get("disableHardwareAcceleration")) {
 
 app.on("ready", async () => {
     console.debug("Reached Electron ready state");
+
+    try {
+        installSecureWeb();
+    } catch {
+        dialog.showErrorBox("SecureWeb", "Cannot load the SecureWeb profile. Check the file before restarting.");
+        app.quit();
+        return;
+    }
 
     let asarPath: string;
 

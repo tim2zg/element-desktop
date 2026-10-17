@@ -6,6 +6,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import { type BrowserWindow, ipcMain, session } from "electron";
+import { secureWebProfilePath } from "./secureweb.js";
 
 /**
  * Check for feature support from the server.
@@ -53,6 +54,9 @@ export function setupMediaAuth(window: BrowserWindow): void {
         // by the app using authenticated URLs from the outset.
         try {
             const url = new URL(req.url);
+            if (secureWebProfilePath() && (url.protocol === "ws:" || url.protocol === "wss:")) {
+                return callback({ cancel: true });
+            }
             if (
                 !url.pathname.startsWith("/_matrix/media/v3/download") &&
                 !url.pathname.startsWith("/_matrix/media/v3/thumbnail")

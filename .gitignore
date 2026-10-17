@@ -1,4 +1,6 @@
 /dist
+/secureweb-bin/
+/secureweb-core/
 /lib
 /webapp
 /webapp.asar

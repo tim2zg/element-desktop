@@ -118,7 +118,11 @@ const config: Omit<Writable<Configuration>, "electronFuses"> & {
         },
         "lib/**",
     ],
-    extraResources: ["build/icon.*", "webapp.asar"],
+    extraResources: [
+        "build/icon.*",
+        "webapp.asar",
+        { from: "secureweb-bin", to: ".", filter: ["secureweb-desktop-transport*"] },
+    ],
     extraMetadata: {
         name: variant.name,
         productName: variant.productName,

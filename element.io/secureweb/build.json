@@ -1,0 +1,7 @@
+{
+    "name": "element-secureweb",
+    "productName": "Element SecureWeb",
+    "description": "Element Desktop with SecureWeb v2 envelope transport",
+    "appId": "com.secureweb.element",
+    "protocols": ["element-secureweb"]
+}
