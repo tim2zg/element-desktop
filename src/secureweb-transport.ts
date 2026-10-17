@@ -25,8 +25,9 @@ export function createSecureWebHandler(
         typeof profile !== "object" ||
         !("upstream_origin" in profile) ||
         typeof profile.upstream_origin !== "string"
-    )
+    ) {
         throw new Error("Invalid SecureWeb profile");
+    }
     const origin = new URL(profile.upstream_origin).origin;
 
     return async (request: Request): Promise<Response> => {
@@ -39,9 +40,7 @@ export function createSecureWebHandler(
         const reader = request.body?.getReader();
         if (reader) {
             try {
-                while (true) {
-                    const chunk = await reader.read();
-                    if (chunk.done) break;
+                for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
                     size += chunk.value.byteLength;
                     if (size > MAX_BODY) {
                         await reader.cancel();
@@ -73,8 +72,9 @@ export function createSecureWebHandler(
             decoded.status > 599 ||
             typeof decoded.body !== "string" ||
             !Array.isArray(decoded.headers)
-        )
+        ) {
             throw new Error("Invalid SecureWeb response");
+        }
         const body = Buffer.from(decoded.body, "base64");
         if (body.length > MAX_BODY || body.toString("base64") !== decoded.body) {
             throw new Error("Invalid SecureWeb response body");
@@ -103,6 +103,9 @@ export function runHelper(
     input: string,
     signal: AbortSignal,
 ): Promise<string> {
+    if (signal.aborted) {
+        return Promise.reject(new Error("SecureWeb request cancelled"));
+    }
     return new Promise<string>((resolve, reject) => {
         const child = spawn(executable, ["--profile", profilePath], { windowsHide: true, stdio: "pipe" });
         const buffers: Buffer[] = [];

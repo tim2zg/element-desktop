@@ -1,85 +1,92 @@
 name: SecureWeb Windows Desktop Release
 on:
-  push:
-    branches: [codex/secureweb-desktop]
-    tags: ['secureweb-v*']
-  workflow_dispatch:
+    push:
+        branches: [codex/secureweb-desktop]
+        tags: ["secureweb-v*"]
+    workflow_dispatch:
 permissions:
-  contents: read
+    contents: read
 jobs:
-  windows:
-    runs-on: windows-2025
-    timeout-minutes: 120
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      VARIANT_PATH: element.io/secureweb/build.json
-      VERSION: 1.12.12-secureweb.1
-    steps:
-      - uses: actions/checkout@v4
-      - name: Resolve pinned SecureWeb source
-        id: core
-        shell: pwsh
-        run: echo "revision=$((Get-Content .secureweb-core-revision).Trim())" >> $env:GITHUB_OUTPUT
-      - uses: actions/checkout@v4
-        with:
-          repository: 00ong/secureWeb
-          ref: ${{ steps.core.outputs.revision }}
-          path: secureweb-core
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: secureweb-core
-      - name: Test and build bundled envelope transport
-        shell: pwsh
-        run: |
-          cargo test --manifest-path secureweb-core/Cargo.toml -p secureweb-desktop-transport --tests --locked
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo build --manifest-path secureweb-core/Cargo.toml -p secureweb-desktop-transport --release --locked
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          New-Item -ItemType Directory -Force secureweb-bin | Out-Null
-          Copy-Item secureweb-core/target/release/secureweb-desktop-transport.exe secureweb-bin/
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-      - name: Install locked dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Test client transport and typecheck desktop app
-        run: |
-          pnpm test:secureweb
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          pnpm lint:types:src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Fetch and verify the matching Element Web release
-        run: |
-          pnpm fetch --importkey
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          pnpm fetch -d element.io/secureweb
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Native build prerequisites
-        shell: pwsh
-        run: |
-          choco install -y nasm magicsplat-tcl-tk --no-progress
-          'C:/Program Files/NASM' >> $env:GITHUB_PATH
-          "$env:LOCALAPPDATA/Apps/Tcl86/bin" >> $env:GITHUB_PATH
-      - uses: ilammy/msvc-dev-cmd@v1
-      - name: Build native search module
-        run: pnpm build:native --target x86_64-pc-windows-msvc
-      - name: Build portable desktop release
-        run: pnpm build --win zip --x64 --publish never -c.win.signAndEditExecutable=false
-      - name: Package release evidence
-        shell: pwsh
-        run: |
-          if (!(Test-Path dist/win-unpacked/resources/secureweb-desktop-transport.exe)) { throw 'Bundled transport is missing' }
-          New-Item -ItemType Directory -Force release | Out-Null
-          Copy-Item dist/*.zip release/
-          Copy-Item SECUREWEB.md release/
-          Copy-Item .secureweb-core-revision release/secureweb-core-revision.txt
-          Get-ChildItem release -File | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content release/SHA256SUMS.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: element-secureweb-windows-x64
-          path: release/
-          if-no-files-found: error
-          retention-days: 14
+    windows:
+        runs-on: windows-2025
+        timeout-minutes: 120
+        env:
+            CSC_IDENTITY_AUTO_DISCOVERY: "false"
+            VARIANT_PATH: element.io/secureweb/build.json
+            VERSION: 1.12.12-secureweb.1
+        steps:
+            - uses: actions/checkout@v4
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: .node-version
+                  cache: pnpm
+            - name: Install locked dependencies
+              run: pnpm install --frozen-lockfile
+            - name: Test client transport and typecheck desktop app
+              run: |
+                  pnpm test:secureweb
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                  pnpm lint:types:src
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                  pnpm build:ts
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                  pnpm exec electron test/secureweb-electron.cjs
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            - name: Fetch and verify the matching Element Web release
+              run: |
+                  pnpm fetch --importkey
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                  pnpm fetch -d element.io/secureweb
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            - uses: actions/cache@v4
+              with:
+                  path: .hak
+                  key: windows-secureweb-native-${{ hashFiles('pnpm-lock.yaml', 'hak/**') }}
+            - name: Native build prerequisites
+              shell: pwsh
+              run: |
+                  choco install -y nasm magicsplat-tcl-tk --no-progress
+                  'C:/Program Files/NASM' >> $env:GITHUB_PATH
+                  "$env:LOCALAPPDATA/Apps/Tcl86/bin" >> $env:GITHUB_PATH
+            - uses: ilammy/msvc-dev-cmd@v1
+            - name: Build native search module
+              run: pnpm build:native --target x86_64-pc-windows-msvc
+            - name: Fetch verified desktop transport from this release
+              shell: pwsh
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
+              run: |
+                  New-Item -ItemType Directory -Force secureweb-bin | Out-Null
+                  $downloaded = $false
+                  for ($attempt = 0; $attempt -lt 80; $attempt++) {
+                      gh release download secureweb-desktop-v0.1.0 --pattern secureweb-desktop-transport.exe --pattern transport.sha256 --pattern secureweb-core-revision.txt --dir secureweb-bin --clobber
+                      if ($LASTEXITCODE -eq 0) { $downloaded = $true; break }
+                      Start-Sleep -Seconds 15
+                  }
+                  if (!$downloaded) { throw 'The pinned transport build is not available yet' }
+                  $expectedRevision = (Get-Content .secureweb-core-revision).Trim()
+                  $actualRevision = (Get-Content secureweb-bin/secureweb-core-revision.txt).Trim()
+                  if (!$actualRevision.StartsWith($expectedRevision)) { throw 'Transport source revision mismatch' }
+                  $expectedHash = (Get-Content secureweb-bin/transport.sha256).Trim().ToLower()
+                  if (Test-Path .secureweb-transport.sha256) { $expectedHash = (Get-Content .secureweb-transport.sha256).Trim().ToLower() }
+                  $actualHash = (Get-FileHash secureweb-bin/secureweb-desktop-transport.exe -Algorithm SHA256).Hash.ToLower()
+                  if ($actualHash -ne $expectedHash) { throw 'Transport checksum mismatch' }
+            - name: Build portable desktop release
+              run: pnpm build --win zip --x64 --publish never -c.win.signAndEditExecutable=false
+            - name: Package release evidence
+              shell: pwsh
+              run: |
+                  if (!(Test-Path dist/win-unpacked/resources/secureweb-desktop-transport.exe)) { throw 'Bundled transport is missing' }
+                  New-Item -ItemType Directory -Force release | Out-Null
+                  Copy-Item dist/*.zip release/
+                  Copy-Item SECUREWEB.md release/
+                  Copy-Item .secureweb-core-revision release/secureweb-core-revision.txt
+                  Get-ChildItem release -File | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content release/SHA256SUMS.txt
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: element-secureweb-windows-x64
+                  path: release/
+                  if-no-files-found: error
+                  retention-days: 14

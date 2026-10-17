@@ -8,12 +8,19 @@ Please see LICENSE files in the repository root for full details.
 import { app, session } from "electron";
 import { existsSync } from "node:fs";
 import path from "node:path";
+
 import { createSecureWebHandler } from "./secureweb-transport.js";
+
+let profileResolved = false;
+let selectedProfile: string | undefined;
 
 /** Resolve the explicitly selected profile without modifying it. */
 export function secureWebProfilePath(): string | undefined {
+    if (profileResolved) return selectedProfile;
     const candidate = path.join(app.getPath("userData"), "secureweb.json");
-    return process.env.SECUREWEB_ELEMENT_PROFILE || (existsSync(candidate) ? candidate : undefined);
+    selectedProfile = process.env.SECUREWEB_ELEMENT_PROFILE || (existsSync(candidate) ? candidate : undefined);
+    profileResolved = true;
+    return selectedProfile;
 }
 
 /** Install the service transport before any renderer can issue requests. */

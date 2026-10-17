@@ -6,6 +6,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import { type BrowserWindow, ipcMain, session } from "electron";
+
 import { secureWebProfilePath } from "./secureweb.js";
 
 /**
