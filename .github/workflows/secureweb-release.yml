@@ -35,9 +35,9 @@ jobs:
                   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             - name: Fetch and verify the matching Element Web release
               run: |
-                  pnpm fetch --importkey
+                  pnpm run fetch --importkey
                   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-                  pnpm fetch -d element.io/secureweb
+                  pnpm run fetch -d element.io/secureweb
                   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             - uses: actions/cache@v4
               with:
@@ -83,10 +83,12 @@ jobs:
                   Copy-Item dist/*.zip release/
                   Copy-Item SECUREWEB.md release/
                   Copy-Item .secureweb-core-revision release/secureweb-core-revision.txt
-                  Get-ChildItem release -File | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content release/SHA256SUMS.txt
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: element-secureweb-windows-x64
-                  path: release/
-                  if-no-files-found: error
-                  retention-days: 14
+                  Get-ChildItem release -File | Where-Object Name -ne 'SHA256SUMS.txt' | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content release/SHA256SUMS.txt
+            - name: Upload desktop package to draft release
+              shell: pwsh
+              env:
+                GH_TOKEN: ${{ github.token }}
+                GH_REPO: ${{ github.repository }}
+              run: |
+                $releaseFiles = @(Get-ChildItem release -File | Select-Object -ExpandProperty FullName)
+                gh release upload secureweb-desktop-v0.1.0 @releaseFiles --clobber
